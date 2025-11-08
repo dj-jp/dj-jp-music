@@ -5,21 +5,34 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>DJ JP – Biblioteca Musical</title>
 <style>
-  body { font-family: Arial, sans-serif; background:#111; color:#eee; margin:0; }
-  header { background:#222; padding:1em; text-align:center; font-size:1.5em; color:#0ff; }
-  .filters { display:flex; flex-wrap:wrap; justify-content:center; gap:10px; padding:1em; background:#1b1b1b; }
-  input, select { padding:8px; border-radius:6px; border:none; }
+  body { font-family: 'Segoe UI', sans-serif; background:#0b0b0b; color:#eaeaea; margin:0; }
+  header { background:#111; padding:1em; text-align:center; font-size:1.6em; color:#00ffff; font-weight:bold; }
+  .filters { display:flex; flex-wrap:wrap; justify-content:center; gap:10px; padding:1em; background:#161616; }
+  input, select { padding:8px; border-radius:6px; border:none; background:#222; color:#eee; }
   table { width:100%; border-collapse:collapse; margin-top:1em; }
   th, td { padding:8px; border-bottom:1px solid #333; text-align:left; }
-  th { background:#0ff2; }
-  tr:hover { background:#222; }
-  .bpm { color:#0f0; }
+  th { background:#00ffff22; }
+  tr:hover { background:#1b1b1b; }
+  .bpm { color:#00ff00; }
   .key { color:#ff0; }
   .genre { color:#0af; }
+  audio { width:180px; }
+  .mode { text-align:center; padding:8px; background:#0f0f0f; color:#0ff; }
 </style>
 </head>
 <body>
 <header>🎧 Biblioteca Musical – DJ JP</header>
+
+<div class="mode">
+  <label>
+    🔄 Modo reproducción:
+    <select id="modeSelect">
+      <option value="local" selected>Local (python http.server)</option>
+      <option value="server">Servidor (Navidrome / Cloudflare)</option>
+    </select>
+  </label>
+  <input id="serverUrl" placeholder="https://dj-jp.trycloudflare.com" style="width:260px;">
+</div>
 
 <div class="filters">
   <input id="search" placeholder="Buscar artista o título...">
@@ -33,7 +46,7 @@
 <div style="padding:1em;">
   <table id="tabla">
     <thead>
-      <tr><th>Título</th><th>Artista</th><th>Álbum</th><th>Año</th><th>🎚 BPM</th><th>🎵 Key</th><th>🎶 Género</th></tr>
+      <tr><th>Título</th><th>Artista</th><th>Álbum</th><th>Año</th><th>🎚 BPM</th><th>🎵 Key</th><th>🎶 Género</th><th>🎧 Reproducir</th></tr>
     </thead>
     <tbody></tbody>
   </table>
@@ -41,12 +54,14 @@
 
 <script>
 let data = [];
+
 async function cargar() {
   const res = await fetch('library.json');
   data = await res.json();
   poblarGeneros();
   mostrar();
 }
+
 function poblarGeneros(){
   const sel = document.getElementById('genre');
   const generos = [...new Set(data.map(t=>t.genre).filter(Boolean))].sort();
@@ -56,6 +71,20 @@ function poblarGeneros(){
     sel.appendChild(opt);
   });
 }
+
+function construirRutaAudio(track) {
+  const mode = document.getElementById('modeSelect').value;
+  const server = document.getElementById('serverUrl').value.trim().replace(/\/$/, '');
+
+  if (mode === "server" && server) {
+    // modo servidor: concatena URL base con path del JSON
+    return `${server}/${encodeURI(track.path)}`;
+  } else {
+    // modo local: el JSON ya usa rutas relativas correctas
+    return encodeURI(track.path);
+  }
+}
+
 function mostrar(){
   const filtro = document.getElementById('search').value.toLowerCase();
   const gen = document.getElementById('genre').value;
@@ -73,7 +102,8 @@ function mostrar(){
         && bpm>=bpmMin && bpm<=bpmMax;
   });
 
-  filtrados.slice(0,1000).forEach(t=>{
+  filtrados.slice(0,500).forEach(t=>{
+    const src = construirRutaAudio(t);
     const tr = document.createElement('tr');
     tr.innerHTML = `
       <td>${t.title||''}</td>
@@ -82,15 +112,19 @@ function mostrar(){
       <td>${t.year||''}</td>
       <td class="bpm">${t.bpm||''}</td>
       <td class="key">${t.key||''}</td>
-      <td class="genre">${t.genre||''}</td>`;
+      <td class="genre">${t.genre||''}</td>
+      <td><audio controls preload="none"><source src="${src}" type="audio/mpeg"></audio></td>`;
     tbody.appendChild(tr);
   });
 }
 
+// refresca al cambiar filtros o modo
 document.getElementById('search').oninput = mostrar;
 document.getElementById('genre').onchange = mostrar;
 document.getElementById('bpmMin').oninput = mostrar;
 document.getElementById('bpmMax').oninput = mostrar;
+document.getElementById('modeSelect').onchange = mostrar;
+document.getElementById('serverUrl').oninput = mostrar;
 
 cargar();
 </script>
