@@ -1,0 +1,98 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>DJ JP – Biblioteca Musical</title>
+<style>
+  body { font-family: Arial, sans-serif; background:#111; color:#eee; margin:0; }
+  header { background:#222; padding:1em; text-align:center; font-size:1.5em; color:#0ff; }
+  .filters { display:flex; flex-wrap:wrap; justify-content:center; gap:10px; padding:1em; background:#1b1b1b; }
+  input, select { padding:8px; border-radius:6px; border:none; }
+  table { width:100%; border-collapse:collapse; margin-top:1em; }
+  th, td { padding:8px; border-bottom:1px solid #333; text-align:left; }
+  th { background:#0ff2; }
+  tr:hover { background:#222; }
+  .bpm { color:#0f0; }
+  .key { color:#ff0; }
+  .genre { color:#0af; }
+</style>
+</head>
+<body>
+<header>🎧 Biblioteca Musical – DJ JP</header>
+
+<div class="filters">
+  <input id="search" placeholder="Buscar artista o título...">
+  <select id="genre">
+    <option value="">Género</option>
+  </select>
+  <input id="bpmMin" type="number" placeholder="BPM mín" style="width:90px;">
+  <input id="bpmMax" type="number" placeholder="BPM máx" style="width:90px;">
+</div>
+
+<div style="padding:1em;">
+  <table id="tabla">
+    <thead>
+      <tr><th>Título</th><th>Artista</th><th>Álbum</th><th>Año</th><th>🎚 BPM</th><th>🎵 Key</th><th>🎶 Género</th></tr>
+    </thead>
+    <tbody></tbody>
+  </table>
+</div>
+
+<script>
+let data = [];
+async function cargar() {
+  const res = await fetch('library.json');
+  data = await res.json();
+  poblarGeneros();
+  mostrar();
+}
+function poblarGeneros(){
+  const sel = document.getElementById('genre');
+  const generos = [...new Set(data.map(t=>t.genre).filter(Boolean))].sort();
+  generos.forEach(g=>{
+    const opt = document.createElement('option');
+    opt.value=g; opt.textContent=g;
+    sel.appendChild(opt);
+  });
+}
+function mostrar(){
+  const filtro = document.getElementById('search').value.toLowerCase();
+  const gen = document.getElementById('genre').value;
+  const bpmMin = parseFloat(document.getElementById('bpmMin').value)||0;
+  const bpmMax = parseFloat(document.getElementById('bpmMax').value)||999;
+
+  const tbody = document.querySelector('#tabla tbody');
+  tbody.innerHTML = '';
+
+  let filtrados = data.filter(t=>{
+    const texto = `${t.title||''} ${t.artist||''}`.toLowerCase();
+    const bpm = parseFloat(t.bpm)||0;
+    return (!filtro || texto.includes(filtro))
+        && (!gen || t.genre===gen)
+        && bpm>=bpmMin && bpm<=bpmMax;
+  });
+
+  filtrados.slice(0,1000).forEach(t=>{
+    const tr = document.createElement('tr');
+    tr.innerHTML = `
+      <td>${t.title||''}</td>
+      <td>${t.artist||''}</td>
+      <td>${t.album||''}</td>
+      <td>${t.year||''}</td>
+      <td class="bpm">${t.bpm||''}</td>
+      <td class="key">${t.key||''}</td>
+      <td class="genre">${t.genre||''}</td>`;
+    tbody.appendChild(tr);
+  });
+}
+
+document.getElementById('search').oninput = mostrar;
+document.getElementById('genre').onchange = mostrar;
+document.getElementById('bpmMin').oninput = mostrar;
+document.getElementById('bpmMax').oninput = mostrar;
+
+cargar();
+</script>
+</body>
+</html>
